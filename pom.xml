@@ -10,11 +10,11 @@
     </parent>
 
     <groupId>com.mycompany</groupId>
-    <artifactId>04-NavigationBot</artifactId>
+    <artifactId>Hunter-Bot</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-    <name>04-NavigationBot</name>
+    <name>Hunter-Bot</name>
 
     <properties>
         <bot.main.class>com.mycompany.navbot.NavBot</bot.main.class>

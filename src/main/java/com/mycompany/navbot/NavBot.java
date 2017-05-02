@@ -54,6 +54,8 @@ public class NavBot extends UT2004BotModuleController {
         weaponPrefs.addGeneralPref(UT2004ItemType.SHIELD_GUN, false);
         weaponPrefs.addGeneralPref(UT2004ItemType.BIO_RIFLE, true);
 
+        weaponPrefs.newPrefsRange(80).add(UT2004ItemType.SHIELD_GUN, true);
+
         weaponPrefs.newPrefsRange(500).add(UT2004ItemType.FLAK_CANNON, true)
                 .add(UT2004ItemType.LINK_GUN, true);
 
@@ -89,7 +91,10 @@ public class NavBot extends UT2004BotModuleController {
     @Override
     public void logic() throws PogamutException {
 
-
+        // If has decent weapons ready to fight
+        if (!hasDecentWeapons()) {
+            return;
+        }
         if (canSeeEnemies()) {
             if (combat()) {
                 return;
@@ -109,6 +114,12 @@ public class NavBot extends UT2004BotModuleController {
         pickUpItems();
     }
 
+    private boolean hasDecentWeapons() {
+
+
+        return true;
+    }
+
     ///////////////
     // STATE HIT //
     ///////////////
@@ -122,9 +133,6 @@ public class NavBot extends UT2004BotModuleController {
     }
 
     private boolean pickUpItems() {
-        if (hasDecentWeapon()) {
-
-        }
 
         if (needHealthUrgent()) {
             if (pickUpNearestHealth()) return true;
@@ -139,12 +147,6 @@ public class NavBot extends UT2004BotModuleController {
 
         return false;
     }
-
-    private boolean hasDecentWeapon() {
-
-        return false;
-    }
-
     private boolean pickUpGoodItem() {
 
         return false;
