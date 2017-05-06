@@ -12,6 +12,7 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="library" scope="TEST" name="Maven: com.google.guava:guava:15.0" level="project" />
     <orderEntry type="library" name="Maven: cz.cuni.amis.pogamut:pogamut-ut2004:3.7.1-SNAPSHOT" level="project" />
     <orderEntry type="library" name="Maven: org.apache.ant:ant-trax:1.8.0" level="project" />
     <orderEntry type="library" name="Maven: net.sourceforge.saxon:saxon:9.1.0.8" level="project" />

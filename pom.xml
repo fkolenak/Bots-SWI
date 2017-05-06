@@ -9,15 +9,15 @@
         <version>3.7.1-SNAPSHOT</version>
     </parent>
 
-    <groupId>com.mycompany</groupId>
-    <artifactId>Hunter-Bot</artifactId>
+    <groupId>cz.zcu.swi.fkolenak</groupId>
+    <artifactId>SmartHunterBot</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-    <name>Hunter-Bot</name>
+    <name>SmartHunterBot</name>
 
     <properties>
-        <bot.main.class>com.mycompany.navbot.NavBot</bot.main.class>
+        <bot.main.class>cz.zcu.swi.fkolenak.SmartHunterBot</bot.main.class>
     </properties>
 
     <repositories>
@@ -26,7 +26,17 @@
             <name>AMIS Artifactory</name>
             <url>http://diana.ms.mff.cuni.cz:8081/artifactory/repo</url>
         </repository>
+
     </repositories>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>15.0</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 
     <build>
         <plugins>
