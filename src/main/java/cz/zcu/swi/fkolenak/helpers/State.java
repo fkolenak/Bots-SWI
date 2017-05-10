@@ -6,8 +6,9 @@ package cz.zcu.swi.fkolenak.helpers;
 public enum State {
     GEAR_UP_MINIMAL,
     READY,
-    HEAL
+    HEAL,
 
+    FLAG_STEAL
 
 
 }
