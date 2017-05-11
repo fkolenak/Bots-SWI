@@ -24,8 +24,8 @@ public class Paths extends BotReference {
 
     private Color[] colors = {Color.cyan, Color.RED, Color.GREEN, Color.MAGENTA, Color.YELLOW, Color.PINK, Color.orange};
 
-    private List<List<NavPoint>> enemyBasePaths = new ArrayList<List<NavPoint>>();
-    private List<List<NavPoint>> ourBasePaths = new ArrayList<List<NavPoint>>();
+    private static List<List<NavPoint>> enemyBasePaths = new ArrayList<List<NavPoint>>();
+    private static List<List<NavPoint>> ourBasePaths = new ArrayList<List<NavPoint>>();
 
 
     public Paths(SmartHunterBot bot) {
@@ -35,46 +35,56 @@ public class Paths extends BotReference {
         getDraw().clearAll();
     }
 
+
     public List<List<NavPoint>> generatePathsToEnemyBase() {
+        synchronized (this) {
+            if (enemyBasePaths.size() > 0) {
+                getLog().info("Already Computed so... Skipping path computation");
+                return enemyBasePaths;
+            }
 
-        myBase = getCTF().getOurBase();
-        enemyBase = getCTF().getEnemyBase();
 
-        List<NavPoint> nearest = getFwMap().getPath(myBase, enemyBase);
-        enemyBasePaths.add(nearest);
-        drawPath(nearest, Color.WHITE);
-        for (int i = 0; i < 5; i++) {
-            PrecomputedPathFuture<NavPoint> newPath = generateNextCTFPath(enemyBasePaths, myBase, enemyBase);
-            if (newPath != null && newPath.get() != null && newPath.get().size() != 0) {
-                enemyBasePaths.add(newPath.get());
-                drawPath(newPath.get(), colors[i]);
+            List<NavPoint> nearest = getFwMap().getPath(myBase, enemyBase);
+            enemyBasePaths.add(nearest);
+            drawPath(nearest, Color.WHITE);
+            for (int i = 0; i < 5; i++) {
+                PrecomputedPathFuture<NavPoint> newPath = generateNextCTFPath(enemyBasePaths, myBase, enemyBase);
+                if (newPath != null && newPath.get() != null && newPath.get().size() != 0) {
+                    enemyBasePaths.add(newPath.get());
+                    drawPath(newPath.get(), colors[i]);
 
-            } else {
-                break;
+                } else {
+                    break;
+                }
             }
         }
-
 
         return enemyBasePaths;
     }
 
     public List<List<NavPoint>> generatePathsToOurBase() {
-        List<NavPoint> nearest = getFwMap().getPath(enemyBase, myBase);
-        ourBasePaths.add(nearest);
-        getDraw().clearAll();
-        drawPath(nearest, Color.WHITE);
+        synchronized (this) {
+            if (ourBasePaths.size() > 0) {
+                getLog().info("Already Computed so... Skipping path computation");
+                return enemyBasePaths;
+            }
 
-        for (int i = 0; i < 5; i++) {
-            PrecomputedPathFuture<NavPoint> newPath = generateNextCTFPath(ourBasePaths, enemyBase, myBase);
-            if (newPath != null && newPath.get() != null && newPath.get().size() != 0) {
-                ourBasePaths.add(newPath.get());
-                drawPath(newPath.get(), colors[colors.length - i - 1]);
+            List<NavPoint> nearest = getFwMap().getPath(enemyBase, myBase);
+            ourBasePaths.add(nearest);
+            getDraw().clearAll();
+            drawPath(nearest, Color.WHITE);
 
-            } else {
-                break;
+            for (int i = 0; i < 5; i++) {
+                PrecomputedPathFuture<NavPoint> newPath = generateNextCTFPath(ourBasePaths, enemyBase, myBase);
+                if (newPath != null && newPath.get() != null && newPath.get().size() != 0) {
+                    ourBasePaths.add(newPath.get());
+                    drawPath(newPath.get(), colors[colors.length - i - 1]);
+
+                } else {
+                    break;
+                }
             }
         }
-
 
         return ourBasePaths;
     }
@@ -99,7 +109,7 @@ public class Paths extends BotReference {
 
     private void drawPath(List<? extends ILocated> path, Color color) {
 
-        if (Constants.DEBUG) {
+        if (Constants.DRAW) {
             getDraw().setColor(color);
             for (int i = 1; i < path.size(); ++i) {
                 getDraw().drawLine(path.get(i - 1), path.get(i));
@@ -139,13 +149,21 @@ public class Paths extends BotReference {
 
         @Override
         public int getNodeExtraCost(NavPoint node, int mapCost) {
+            int weapon = -100;
+            int dd = -250;
+            int existing = 150;
+            if (bot.getGame().getMapName().equals("CTF-BP2-Concentrate")) {
+                weapon = -50;
+                dd = -300;
+                existing = 75;
+            }
             if (node.getItem() != null) {
                 if (node.getItemClass().getCategory().equals(ItemType.Category.WEAPON)
                         || node.getItemClass().getCategory().equals(ItemType.Category.HEALTH)
                         || node.getItemClass().getCategory().equals(ItemType.Category.SHIELD)) {
-                    return -100;
+                    return weapon;
                 } else if (node.getItemClass().getGroup().equals(UT2004ItemType.UT2004Group.UDAMAGE)) {
-                    return -250;
+                    return dd;
                 }
             }
             for (List<NavPoint> existingPath : existingPaths) {
@@ -153,11 +171,11 @@ public class Paths extends BotReference {
                     return 0;
                 }
                 if (existingPath.contains(node)) {
-                    return 150;
+                    return existing;
                 }
             }
 
-            return 10;
+            return 0;
         }
 
         @Override

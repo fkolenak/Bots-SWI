@@ -5,6 +5,6 @@ package cz.zcu.swi.fkolenak.helpers;
  */
 public class Constants {
     public static final boolean DEBUG = true;
-
-
+    public static final boolean VERBOSE = true;
+    public static final boolean DRAW = true;
 }

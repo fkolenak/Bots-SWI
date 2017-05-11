@@ -85,6 +85,9 @@ public class TamperNavBuilder {
             bot.getNavBuilder().removeEdge("CTF-BP2-Concentrate.PathNode68", "CTF-BP2-Concentrate.JumpSpot12");
             bot.getNavBuilder().removeEdge("CTF-BP2-Concentrate.PathNode69", "CTF-BP2-Concentrate.JumpSpot10");
 
+            // WTF edge
+            bot.getNavBuilder().removeEdgesBetween("CTF-BP2-Concentrate.JumpSpot11", "CTF-BP2-Concentrate.PathNode44");
+
         }
 
         if (bot.getGame().getMapName().equals("CTF-Maul")) {

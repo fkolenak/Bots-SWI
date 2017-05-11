@@ -17,10 +17,6 @@ import java.util.List;
 public class NavigateFunctions extends BotReference {
 
     private List<NavPoint> currentPath;
-
-
-    private boolean debug = Constants.DEBUG;
-
     public NavigateFunctions(SmartHunterBot smartHunterBot) {
         super(smartHunterBot);
     }
@@ -101,7 +97,7 @@ public class NavigateFunctions extends BotReference {
 
 
     private void drawPath(List<NavPoint> path) {
-        if (this.debug) {
+        if (Constants.DRAW) {
             getDraw().clearAll();
             getDraw().setColor(Color.WHITE);
             if (path == null || path.size() == 0) {

@@ -10,6 +10,7 @@ import cz.cuni.amis.pogamut.base.communication.worldview.object.event.WorldObjec
 import cz.cuni.amis.pogamut.base.utils.guice.AgentScoped;
 import cz.cuni.amis.pogamut.base.utils.math.DistanceUtils;
 import cz.cuni.amis.pogamut.base3d.worldview.object.ILocated;
+import cz.cuni.amis.pogamut.unreal.communication.messages.UnrealId;
 import cz.cuni.amis.pogamut.ut2004.agent.module.utils.TabooSet;
 import cz.cuni.amis.pogamut.ut2004.agent.navigation.NavigationState;
 import cz.cuni.amis.pogamut.ut2004.agent.navigation.UT2004PathAutoFixer;
@@ -20,7 +21,6 @@ import cz.cuni.amis.pogamut.ut2004.communication.messages.gbcommands.Configurati
 import cz.cuni.amis.pogamut.ut2004.communication.messages.gbcommands.Initialize;
 import cz.cuni.amis.pogamut.ut2004.communication.messages.gbcommands.Rotate;
 import cz.cuni.amis.pogamut.ut2004.communication.messages.gbinfomessages.*;
-import cz.cuni.amis.pogamut.ut2004.utils.UT2004BotRunner;
 import cz.cuni.amis.pogamut.ut2004.utils.UnrealUtils;
 import cz.cuni.amis.utils.exception.PogamutException;
 import cz.cuni.amis.utils.flag.FlagListener;
@@ -45,8 +45,7 @@ public class SmartHunterBot extends UT2004BotModuleController {
 
     private static int _ID = 0;
 
-    protected static int skill = 5;
-    protected State state = State.GEAR_UP_MINIMAL;
+    protected State state = new State(State.HIGH.GEAR_UP_MINIMAL, State.LOW.NONE);
 
     protected static int CHANGE_WEAPON_COOLDOWN = 1400;
 
@@ -96,18 +95,7 @@ public class SmartHunterBot extends UT2004BotModuleController {
 
     private AutoTraceRay leftGround, rightGround;
 
-    /**
-     * This method is called when the bot is started either from IDE or from
-     * command line.
-     *
-     * @param args
-     */
-    public static void main(String args[]) throws PogamutException {
 
-        // wrapped logic for bots executions, suitable to run single bot in single JVM
-        new UT2004BotRunner(SmartHunterBot.class, "HunterBot" + _ID).setMain(true).startAgent();
-        _ID++;
-    }
 
     /**
      * Here we can modify initialize command for our bot if we want to.
@@ -116,7 +104,19 @@ public class SmartHunterBot extends UT2004BotModuleController {
      */
     @Override
     public Initialize getInitializeCommand() {
-        return new Initialize().setName("Hunter-Bot").setDesiredSkill(skill);
+        Initialize i = new Initialize().setName("Hunter-Bot" + getId()).setDesiredSkill(Main.SKILL).setTeam(Main.TEAM);
+        incrementID();
+        return i;
+    }
+
+    public int getId() {
+        return _ID;
+    }
+
+    private void incrementID() {
+        synchronized (this) {
+            _ID++;
+        }
     }
 
     @Override
@@ -153,6 +153,9 @@ public class SmartHunterBot extends UT2004BotModuleController {
        // setUpRayCasting();
         fNavigate = new NavigateFunctions(this);
 
+        log.info(ctf.toString());
+
+        log.info(getCTF().toString());
 
 
 
@@ -206,10 +209,13 @@ public class SmartHunterBot extends UT2004BotModuleController {
 
     @Override
     public void beforeFirstLogic() {
+
+
         paths = new Paths(this);
         paths.generatePathsToEnemyBase();
         paths.generatePathsToOurBase();
         stateReady = new StateReady(this, fNavigate, paths);
+
 
 
     }
@@ -224,28 +230,23 @@ public class SmartHunterBot extends UT2004BotModuleController {
     public void logic() throws PogamutException {
         shoot();
         // Go for weapon
-        if(state == State.GEAR_UP_MINIMAL){
-            debugGoal("STATE GEAR_UP");
+        if (state.getCurrentStateHigh() == State.HIGH.GEAR_UP_MINIMAL) {
             obtainGoods();
+            debugState();
             return;
         }
 
 
-        if(state == State.READY) {
+        if (state.getCurrentStateHigh() == State.HIGH.READY) {
             stateReady();
         }
 
-        if(state == State.HEAL){
-            debugGoal("STATE HEAL");
+        if (state.getCurrentStateHigh() == State.HIGH.HEAL) {
 
             if(!getHealth()){
-                state = State.READY;
+                state.setCurrentStateHigh(State.HIGH.READY);
             }
         }
-        /*if( pickUpItems()){
-            return;
-        }*/
-
     }
 
 
@@ -257,11 +258,7 @@ public class SmartHunterBot extends UT2004BotModuleController {
 
     private boolean stateReady() {
 
-        if (stateReady.decide(state)) {
-            debugGoal("STATE READY");
-            return true;
-        }
-        return false;
+        return stateReady.decide(state);
     }
 
 
@@ -332,14 +329,15 @@ public class SmartHunterBot extends UT2004BotModuleController {
     private boolean obtainGoods() {
         if(navigation.isNavigating()){
             return false;
-        } else {
         }
 
         // #2 Priority if already has one good weapon get armor
         Collection<UT2004ItemType> requiredWeapons = removeLoadedWeapons(premades.getRequiredWeapons());
-        if (requiredWeapons.size() <= premades.getRequiredWeapons().size() - 1) {
-            //if(pickUpNearestArmor()){
-            state = State.READY;
+        if (weaponry.getLoadedRangedWeapons().size() > 1) {
+            if (pickUpNearestArmor()) {
+                return true;
+            }
+            state.setCurrentStateHigh(State.HIGH.READY);
 
             return true;
             //}
@@ -347,7 +345,7 @@ public class SmartHunterBot extends UT2004BotModuleController {
         // #1 Priority
         // If no good weapons found
         if (requiredWeapons.size() > 3) {
-            if(!pickupNearestGoodWeapon(requiredWeapons)){
+            if (!pickupNearestWeapon(requiredWeapons)) {
                 // pick up some weapon if bot has no better weapon than default
                 if(weaponry.getLoadedRangedWeapons().size() == 1){
                     if(pickUpSomeWeapon()){
@@ -358,7 +356,7 @@ public class SmartHunterBot extends UT2004BotModuleController {
                 return true;
             }
         }
-        state = State.READY;
+        state.setCurrentStateHigh(State.HIGH.READY);
         return true;
     }
 
@@ -371,7 +369,7 @@ public class SmartHunterBot extends UT2004BotModuleController {
      * BEHAVIOR - try to collect 'requiredWeapons'; start with the nearest first.
      * @return success
      */
-    private boolean pickupNearestGoodWeapon(Collection<UT2004ItemType> requiredWeapons) {
+    private boolean pickupNearestWeapon(Collection<UT2004ItemType> requiredWeapons) {
         Set<Item> nearest = getNearestSpawnedItems(requiredWeapons);
 
         Item target = DistanceUtils.getNearest(nearest, info.getNearestNavPoint(),
@@ -381,14 +379,32 @@ public class SmartHunterBot extends UT2004BotModuleController {
                         return fwMap.getDistance(object.getNavPoint(), info.getNearestNavPoint());
                     }
                 });
-        if (target == null) {
-            //log.severe("No item to navigate to! requiredWeapons.size() = " + requiredWeapons.size());
-            return false;
+        Item closestWeapon = getNearestSpawnedWeapon();
+
+        if (target != null && closestWeapon != null) {
+            double distanceBetweenItem1 = fwMap.getDistance(target.getNavPoint(), info.getNearestNavPoint());
+            double distanceBetweenItem2 = fwMap.getDistance(closestWeapon.getNavPoint(), info.getNearestNavPoint());
+            if (distanceBetweenItem1 < distanceBetweenItem2) {
+                LetKnow.debugGoal(this, "Navigate", target.getType().getName() + " | " + distanceBetweenItem1);
+                navigateTo(target);
+                return true;
+            } else {
+                LetKnow.debugGoal(this, "Navigate", closestWeapon.getType().getName() + " | " + distanceBetweenItem2);
+                navigateTo(closestWeapon);
+                return true;
+            }
+
+
+        } else if (target != null) {
+            LetKnow.debugGoal(this, "Navigate", target.getType().getName() + " | " + (int) (fwMap.getDistance(target.getNavPoint(), info.getNearestNavPoint())));
+            navigateTo(target);
+        } else if (closestWeapon != null) {
+            LetKnow.debugGoal(this, "Navigate", closestWeapon.getType().getName() + " | " + (int) (fwMap.getDistance(closestWeapon.getNavPoint(), info.getNearestNavPoint())));
+            navigateTo(closestWeapon);
         }
-        debugGoal("C:" + target.getType().getName() + " | " + (int)(fwMap.getDistance(target.getNavPoint(), info.getNearestNavPoint())));
-        log.info("Navigating to: " + target.toJsonLiteral());
-        navigateTo(target);
-        return true;
+
+
+        return false;
     }
 
 
@@ -429,7 +445,7 @@ public class SmartHunterBot extends UT2004BotModuleController {
 
 
         if(weaponry.getLoadedWeapons().size() < 2){
-            state = State.GEAR_UP_MINIMAL;
+            state.setCurrentStateHigh(State.HIGH.GEAR_UP_MINIMAL);
             return true;
         }
         if(navigation.isNavigating()){
@@ -490,17 +506,51 @@ public class SmartHunterBot extends UT2004BotModuleController {
             return false;
         }
         navigateTo(nearestHealth);
-        state = State.READY;
+        state.setCurrentStateHigh(State.HIGH.READY);
         return true;
     }
 
     private boolean pickUpNearestArmor() {
         Item nearestArmor = getNearestSpawnedItem(UT2004ItemType.SHIELD_PACK);
-        if(nearestArmor == null){
+        Item nearestSuperArmor = getNearestSpawnedItem(UT2004ItemType.SUPER_SHIELD_PACK);
+
+        if (nearestArmor == null && nearestSuperArmor == null) {
             return false;
         }
-        navigateTo(nearestArmor);
-        return true;
+        Item navigateToItem;
+
+        double distanceToEnemy, distanceToUs, distanceToBot;
+
+        if (nearestSuperArmor == null) {
+            // Filter armor that is far from our base
+            navigateToItem = nearestArmor;
+        } else if (nearestArmor == null) {
+            navigateToItem = nearestSuperArmor;
+        } else {
+            distanceToBot = fwMap.getDistance(nearestArmor.getNavPoint(), info.getNearestNavPoint());
+            double distanceToBot2 = fwMap.getDistance(nearestSuperArmor.getNavPoint(), info.getNearestNavPoint());
+            if (distanceToBot < distanceToBot2) {
+                navigateToItem = nearestArmor;
+            } else {
+                navigateToItem = nearestSuperArmor;
+            }
+        }
+
+        distanceToEnemy = fwMap.getDistance(navigateToItem.getNavPoint(), ctf.getEnemyBase());
+        distanceToUs = fwMap.getDistance(navigateToItem.getNavPoint(), ctf.getOurBase());
+        distanceToBot = fwMap.getDistance(navigateToItem.getNavPoint(), info.getNearestNavPoint());
+
+
+        if (distanceToUs < distanceToEnemy) {
+            navigateTo(navigateToItem);
+            return true;
+        } else if (distanceToBot < 8000 || distanceToBot < distanceToEnemy) {
+            navigateTo(navigateToItem);
+            return true;
+        }
+
+
+        return false;
     }
 
     //******************************************\\
@@ -539,6 +589,15 @@ public class SmartHunterBot extends UT2004BotModuleController {
     }
 
     /**
+     * Translates 'types' to the set of "nearest spawned items" of those 'types'.
+     *
+     * @return
+     */
+    private Item getNearestSpawnedWeapon() {
+        return getNearestSpawnedItem(ItemType.Category.WEAPON);
+    }
+
+    /**
      * Returns the nearest spawned item of 'type'.
      * @param type
      * @return
@@ -558,6 +617,25 @@ public class SmartHunterBot extends UT2004BotModuleController {
         return nearest;
     }
 
+    /**
+     * Returns the nearest spawned item of 'type'.
+     *
+     * @param type
+     * @return
+     */
+    private Item getNearestSpawnedItem(ItemType.Category type) {
+        final NavPoint nearestNavPoint = info.getNearestNavPoint();
+        return DistanceUtils.getNearest(
+                items.getSpawnedItems(type).values(),
+                info.getNearestNavPoint(),
+                new DistanceUtils.IGetDistance<Item>() {
+                    @Override
+                    public double getDistance(Item object, ILocated target) {
+                        return fwMap.getDistance(object.getNavPoint(), nearestNavPoint);
+                    }
+
+                });
+    }
     /**
      * Returns the nearest spawned item of 'type'.
      * @param types
@@ -597,7 +675,7 @@ public class SmartHunterBot extends UT2004BotModuleController {
         //navigation.navigate(players.getNearestVisibleEnemy());
         shoot.shoot(weaponPrefs, enemy);
         if(needHealthUrgent()) {
-            state = State.HEAL;
+            state.setCurrentStateHigh(State.HIGH.HEAL);
         }
         return true;
     }
@@ -628,8 +706,8 @@ public class SmartHunterBot extends UT2004BotModuleController {
             move.jump();
         } else if(dodgeMoveNumber == 2){
             move.doubleJump();
-        } else if(dodgeMoveNumber == 3){
-            move.dodge(info.getNearestItem().getLocation(),true);
+        } else if(dodgeMoveNumber == 3) {
+            move.dodge(info.getNearestItem().getLocation(),false);
         } else if(dodgeMoveNumber == 4){
             move.dodge(info.getLocation().addXYZ(random.nextInt(100)-50,random.nextInt(100)-50,0),false);
         }
@@ -669,9 +747,11 @@ public class SmartHunterBot extends UT2004BotModuleController {
      */
     @Override
     public void botKilled(BotKilled event) {
-        state = State.GEAR_UP_MINIMAL;
+        state.setCurrentStateHigh(State.HIGH.GEAR_UP_MINIMAL);
+        state.setCurrentStateLow(State.LOW.NONE);
+
         currentPath = null;
-        log.info(info.getKills() + " " + (info.getDeaths()+1));
+        log.info(bot.getBotName() + " -> KILLS: " + info.getKills() + " DEATHS: " + (info.getDeaths()+1));
     }
 
     //******************************************\\
@@ -775,11 +855,9 @@ public class SmartHunterBot extends UT2004BotModuleController {
         }*/
         randomDodgeMove();
         if(!canSeeEnemies()){
-            debugGoal("Cant See you");
             getAct().act(new Rotate().setAmount(32000));
         } else {
             if(navigation.isNavigating()){
-                debugGoal("I see you, strafing");
                 navigation.getCurrentTarget();
                 move.strafeTo(navigation.getCurrentTarget(), players.getNearestVisibleEnemy().getLocation());
             }
@@ -852,16 +930,21 @@ public class SmartHunterBot extends UT2004BotModuleController {
     }
     @EventListener(eventClass = Bumped .class)
     protected void bumpedListener  (Bumped event) {
-        randomDodgeMove();
+        for (UnrealId id : players.getEnemies().keySet()) {
+            if (id.equals(event.getId())) {
+                move.dodgeBack(info.getLocation().addXYZ(1, 0, 0), false);
+            }
+        }
+        for (UnrealId id : players.getFriends().keySet()) {
+            if (id.equals(event.getId())) {
+                move.strafeLeft(200);
+            }
+        }
+        //randomDodgeMove();
     }
 
-    /**
-     * Displays info tag on the bot.
-     * @param goal
-     */
-    public void debugGoal(String goal) {
-        if(DEBUG)
-            bot.getBotName().setInfo(goal);
+    public void debugState() {
+        LetKnow.debugState(this, state);
     }
 
 }

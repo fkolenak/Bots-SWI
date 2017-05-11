@@ -2,10 +2,7 @@ package cz.zcu.swi.fkolenak.states;
 
 import cz.cuni.amis.pogamut.ut2004.communication.messages.gbinfomessages.NavPoint;
 import cz.zcu.swi.fkolenak.SmartHunterBot;
-import cz.zcu.swi.fkolenak.helpers.BotReference;
-import cz.zcu.swi.fkolenak.helpers.NavigateFunctions;
-import cz.zcu.swi.fkolenak.helpers.Paths;
-import cz.zcu.swi.fkolenak.helpers.State;
+import cz.zcu.swi.fkolenak.helpers.*;
 
 import java.util.List;
 
@@ -27,33 +24,43 @@ public class StateReady extends BotReference {
     public boolean decide(State state) {
         this.state = state;
         // TODO change state
+
+        if (this.state.getCurrentStateHigh() != State.HIGH.READY) {
+            return false;
+        }
+
+        // If our team doesn't have enemy flag, go for it
         if (getCTF().isEnemyFlagHome()) {
-            if (state != State.FLAG_STEAL) {
-                this.state = State.FLAG_STEAL;
+            if (state.getCurrentStateLow() != State.LOW.FLAG_STEAL) {
+                this.state.setCurrentStateLow(State.LOW.FLAG_STEAL);
+                LetKnow.debugState(this.getBot(), this.state);
+            }
                 // TODO form a group
-                if (!getNavigation().isNavigating()) {
+            if (!getNavigation().isNavigating()
+                    || !getNavigation().getCurrentTargetNavPoint().equals(getCTF().getOurBase())
+                    || !getNavigation().getCurrentTargetNavPoint().equals(getCTF().getEnemyBase())
+                    ) {
                     double distance = getInfo().getNearestNavPoint().getLocation().getDistance(getCTF().getOurBase().getLocation());
                     if (getInfo().getNearestNavPoint().equals(getCTF().getOurBase()) || distance < 100) {
                         List<List<NavPoint>> paths = this.paths.getEnemyBasePaths();
                         fNavigate.navigateTo(paths.get(getBot().getRandom().nextInt(paths.size())));
                     } else {
-                        // TODO pokud prestreli je na tom bode ale nejblizsi muze byt neco jineho
                         fNavigate.navigateTo(getCTF().getOurBase());
                     }
                     return true;
-                }
             }
+
             return true;
         }
-        if (getCTF().isBotCarryingEnemyFlag()) {
+        if (getCTF().isEnemyFlagHeld() && getCTF().isBotCarryingEnemyFlag()) {
             if (!getNavigation().isNavigating()) {
                 List<List<NavPoint>> paths = this.paths.getOurBasePaths();
                 fNavigate.navigateTo(paths.get(getBot().getRandom().nextInt(paths.size())));
                 // TODO cover me
                 return true;
-            } else if (isEnemyFlagAtOurHome() && !getCTF().canBotScore()) {
+            } else if (!getCTF().canBotScore()) {
                 // TODO get our flag
-
+                // This bot just waits until teammates returns our flag
                 return true;
             }
         }

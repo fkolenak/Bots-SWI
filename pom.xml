@@ -17,7 +17,7 @@
     <name>SmartHunterBot</name>
 
     <properties>
-        <bot.main.class>cz.zcu.swi.fkolenak.SmartHunterBot</bot.main.class>
+        <bot.main.class>cz.zcu.swi.fkolenak.Main</bot.main.class>
     </properties>
 
     <repositories>
