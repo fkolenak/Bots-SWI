@@ -27,12 +27,14 @@ public class GoalStealEnemyFlag extends Goal {
 
     @Override
     public double getPriority() {
-        return Constants.GOAL_PRIORITY_STEAL_ENEMY_FLAG;
+        return Constants.GOAL_PRIORITY_ENEMY_FLAG_STEAL;
     }
 
     @Override
     public void abandon() {
-        state.setCurrentStateLow(State.LOW.NONE);
+        if (getNavigation().isNavigating()) {
+            getNavigation().stopNavigation();
+        }
     }
 
     @Override

@@ -32,9 +32,7 @@ import cz.zcu.swi.fkolenak.communication.classes.WorldState;
 import cz.zcu.swi.fkolenak.communication.events.TCShareWorldState;
 import cz.zcu.swi.fkolenak.goals.GoalManager;
 import cz.zcu.swi.fkolenak.goals.StateReady;
-import cz.zcu.swi.fkolenak.goals.low.GoalPickupItems;
-import cz.zcu.swi.fkolenak.goals.low.GoalStealEnemyFlag;
-import cz.zcu.swi.fkolenak.goals.low.GoalStealingEnemyFlag;
+import cz.zcu.swi.fkolenak.goals.low.*;
 import cz.zcu.swi.fkolenak.helpers.*;
 
 import javax.vecmath.Vector3d;
@@ -110,6 +108,9 @@ public class SmartHunterBot extends UT2004BotTCController {
     private GoalStealingEnemyFlag goalStealingEnemyFlag;
     private GoalStealEnemyFlag goalStealEnemyFlag;
     private GoalPickupItems poalPickupItems;
+    private GoalPickUpEnemyFlag goalPickUpEnemyFlag;
+    private GoalPickUpOurFlag goalPickUpOurFlag;
+
 
     public static UT2004TCServer tcServer;
 
@@ -239,17 +240,23 @@ public class SmartHunterBot extends UT2004BotTCController {
         stateReady = new StateReady(this, fNavigate, paths);
 
         goalManager = new GoalManager(this);
+        worldState = new WorldState();
 
         goalStealingEnemyFlag = new GoalStealingEnemyFlag(this, fNavigate, paths, state);
         goalStealEnemyFlag = new GoalStealEnemyFlag(this, fNavigate, paths, state);
         poalPickupItems = new GoalPickupItems(this, fNavigate, paths, state);
+        goalPickUpEnemyFlag = new GoalPickUpEnemyFlag(this, fNavigate, paths, state, worldState);
+        goalPickUpOurFlag = new GoalPickUpOurFlag(this, fNavigate, paths, state, worldState);
+
 
         goalManager.addGoal(goalStealingEnemyFlag);
         goalManager.addGoal(goalStealEnemyFlag);
         goalManager.addGoal(poalPickupItems);
+        goalManager.addGoal(goalPickUpEnemyFlag);
+        goalManager.addGoal(goalPickUpOurFlag);
 
 
-        worldState = new WorldState();
+
     }
 
 
@@ -418,14 +425,14 @@ public class SmartHunterBot extends UT2004BotTCController {
             if (distanceBetweenItem1 < distanceBetweenItem2) {
                 if (Constants.DEBUG) {
                     getLog().info("Navigate:" + target.getType().getName());
-                    LetKnow.debugGoal(this, "Navigate", target.getType().getName());
+                    //LetKnow.debugGoal(this, "Navigate", target.getType().getName());
                 }
                 navigateTo(target);
                 return true;
             } else {
                 if (Constants.DEBUG) {
                     getLog().info("Navigate:" + closestWeapon.getType().getName());
-                    LetKnow.debugGoal(this, "Navigate", closestWeapon.getType().getName());
+                    //LetKnow.debugGoal(this, "Navigate", closestWeapon.getType().getName());
                 }
                 navigateTo(closestWeapon);
                 return true;
@@ -433,10 +440,10 @@ public class SmartHunterBot extends UT2004BotTCController {
 
 
         } else if (target != null) {
-            LetKnow.debugGoal(this, "Navigate", target.getType().getName() + " | " + (int) (fwMap.getDistance(target.getNavPoint(), info.getNearestNavPoint())));
+            //LetKnow.debugGoal(this, "Navigate", target.getType().getName() + " | " + (int) (fwMap.getDistance(target.getNavPoint(), info.getNearestNavPoint())));
             navigateTo(target);
         } else if (closestWeapon != null) {
-            LetKnow.debugGoal(this, "Navigate", closestWeapon.getType().getName() + " | " + (int) (fwMap.getDistance(closestWeapon.getNavPoint(), info.getNearestNavPoint())));
+            //LetKnow.debugGoal(this, "Navigate", closestWeapon.getType().getName() + " | " + (int) (fwMap.getDistance(closestWeapon.getNavPoint(), info.getNearestNavPoint())));
             navigateTo(closestWeapon);
         }
 
@@ -945,7 +952,7 @@ public class SmartHunterBot extends UT2004BotTCController {
     }
 
     public void updateWorldState() {
-        long timestamp = game.getGameInfo().getSimTime();
+        long timestamp = System.currentTimeMillis();
         if (this.ctf.isEnemyFlagHome()) {
             this.worldState.updateEnemyFlag(this.ctf.getEnemyBase().getLocation(), timestamp);
         } else if (this.ctf.isBotCarryingEnemyFlag()) {

@@ -36,7 +36,9 @@ public class GoalPickupItems extends Goal {
 
     @Override
     public void abandon() {
-
+        if (getNavigation().isNavigating()) {
+            getNavigation().stopNavigation();
+        }
     }
 
     @Override

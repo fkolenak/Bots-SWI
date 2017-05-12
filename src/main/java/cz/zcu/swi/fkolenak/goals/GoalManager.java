@@ -1,6 +1,6 @@
 package cz.zcu.swi.fkolenak.goals;
 
-import cz.cuni.amis.utils.Heatup;
+import cz.cuni.amis.utils.Cooldown;
 import cz.zcu.swi.fkolenak.SmartHunterBot;
 import cz.zcu.swi.fkolenak.goals.helpers.IGoal;
 import cz.zcu.swi.fkolenak.helpers.LetKnow;
@@ -17,7 +17,7 @@ public class GoalManager {
     protected IGoal currentGoal = null;
     protected final SmartHunterBot bot;
 
-    protected Heatup heatup = new Heatup(500);
+    protected Cooldown cool = new Cooldown(500);
 
     public GoalManager(SmartHunterBot bot) {
         this.bot = bot;
@@ -43,15 +43,15 @@ public class GoalManager {
             }
         }
         // mame vybrany korektni cil, ktery nasledujeme
-        if (heatup.isCool()) {
+        if (cool.isCool()) {
+            cool.use();
             bot.getLog().info(
                     String.format("Chosen goal pri %.2f: %s",
                             currentGoal.getPriority(), currentGoal.getClass().getSimpleName()));
-            heatup.heat();
+            LetKnow.debugGoal(bot, "Goal", "[" + currentGoal.getClass().getSimpleName() + "]");
         }
         currentGoal.perform();
 
-        LetKnow.debugGoal(bot, "Goal", "[" + currentGoal.getClass().getSimpleName() + "]");
         //setName("CTFBot [" + currentGoal.getClass().getSimpleName() + "]");
 
         return currentGoal;

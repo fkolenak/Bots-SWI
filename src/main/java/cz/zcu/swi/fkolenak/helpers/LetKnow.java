@@ -25,9 +25,6 @@ public class LetKnow {
      * Displays info tag on the bot.
      */
     public static void debugGoal(SmartHunterBot bot, String key, String value) {
-        if (Constants.DEBUG) {
-            bot.getLog().info("Setting info:" + key + " -> " + value);
-        }
         if (Constants.VERBOSE) {
             bot.getBot().getBotName().setInfo(key, value);
         }
