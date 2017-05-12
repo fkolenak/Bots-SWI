@@ -25,11 +25,11 @@ public class GoalFulfillHelpRequest extends Goal {
             return false;
         }
         RequestHelpDefense helpRequest = bot.getHelpRequest();
-        double distance = getBot().getFwMap().getDistance(getNavPoints().getNearestNavPoint(getInfo().getLocation()), getNavPoints().getNearestNavPoint(helpRequest.getEnemy().getLocation()));
+        double distance = getBot().getFwMap().getDistance(getNavPoints().getNearestNavPoint(getInfo().getLocation()), getNavPoints().getNearestNavPoint(helpRequest.getEnemyLocation()));
 
-        if (helpRequest.isUrgent() && distance < 2500) {
+        if (helpRequest.isUrgent() && distance < 2000) {
             return true;
-        } else if (distance < 1500) {
+        } else if (distance < 1000) {
             return true;
         }
         return false;
@@ -49,7 +49,11 @@ public class GoalFulfillHelpRequest extends Goal {
     public void perform() {
         NavPoint navigateTo;
         if (getGame().getMapName().equals("CTF-BP2-Concentrate")) {
-            navigateTo = getNavPoints().getNavPoint("CTF-BP2-Concentrate.PathNode86");
+            if (getCTF().getOurBase().getId().getStringId() == "CTF-BP2-Concentrate.xRedFlagBase1") {
+                navigateTo = getNavPoints().getNavPoint("CTF-BP2-Concentrate.PathNode86");
+            } else {
+                navigateTo = getNavPoints().getNavPoint("CTF-BP2-Concentrate.PathNode5");
+            }
         } else {
             navigateTo = getCTF().getOurBase();
         }
@@ -60,7 +64,7 @@ public class GoalFulfillHelpRequest extends Goal {
             fNavigate.navigateTo(navigateTo);
         }
         if (!getPlayers().canSeeEnemies()) {
-            getNavigation().setFocus(bot.getHelpRequest().getEnemy().getLocation());
+            getNavigation().setFocus(bot.getHelpRequest().getEnemyLocation());
         }
         double dist = getInfo().getLocation().getDistance(getCTF().getEnemyBase().getLocation());
 

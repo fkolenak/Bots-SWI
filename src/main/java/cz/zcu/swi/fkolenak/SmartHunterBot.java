@@ -115,6 +115,7 @@ public class SmartHunterBot extends UT2004BotTCController {
     private GoalPickUpEnemyFlag goalPickUpEnemyFlag;
     private GoalPickUpOurFlag goalPickUpOurFlag;
     private GoalHuntEnemyFlagStealer goalHuntEnemyFlagStealer;
+    private GoalFulfillHelpRequest goalFulfillHelpRequest;
 
     public static UT2004TCServer tcServer;
 
@@ -252,6 +253,7 @@ public class SmartHunterBot extends UT2004BotTCController {
         goalPickUpEnemyFlag = new GoalPickUpEnemyFlag(this, fNavigate, paths, state, worldState);
         goalPickUpOurFlag = new GoalPickUpOurFlag(this, fNavigate, paths, state, worldState);
         goalHuntEnemyFlagStealer = new GoalHuntEnemyFlagStealer(this, fNavigate, paths, state);
+        goalFulfillHelpRequest = new GoalFulfillHelpRequest(this, fNavigate, paths, state);
 
         goalManager.addGoal(goalStealingEnemyFlag);
         goalManager.addGoal(goalStealEnemyFlag);
@@ -259,6 +261,7 @@ public class SmartHunterBot extends UT2004BotTCController {
         goalManager.addGoal(goalPickUpEnemyFlag);
         goalManager.addGoal(goalPickUpOurFlag);
         goalManager.addGoal(goalHuntEnemyFlagStealer);
+        goalManager.addGoal(goalFulfillHelpRequest);
 
 
 
@@ -310,7 +313,6 @@ public class SmartHunterBot extends UT2004BotTCController {
     private void shoot() {
         // Shoot enemy
         if (canSeeEnemies()) {
-            // TODO improve targets
             combat();
         } else {
             // No enemy stop shooting
@@ -355,15 +357,6 @@ public class SmartHunterBot extends UT2004BotTCController {
         }
         return false;
     }
-
-
-    private boolean checkHealth() {
-        if(needHealth()){
-            return true;
-        }
-        return needArmor();
-    }
-
 
     private void stopShooting(){
         if (info.isShooting()){
@@ -678,11 +671,17 @@ public class SmartHunterBot extends UT2004BotTCController {
             return false;
         }
         Player enemy = players.getNearestVisibleEnemy();
+        if (getCTF().isOurFlagHeld() && getCTF().getOurFlag().getHolder() != null) {
+            Player tmp = players.getVisiblePlayer(getCTF().getOurFlag().getHolder());
+            if (tmp != null) {
+                enemy = tmp;
+            }
+        }
         navigation.setFocus(enemy.getLocation());
         strafe();
         //navigation.navigate(players.getNearestVisibleEnemy());
         shoot.shoot(weaponPrefs, enemy);
-        if(needHealthUrgent()) {
+        if (needHealthUrgent() && !getCTF().isBotCarryingEnemyFlag()) {
             state.setCurrentStateHigh(State.HIGH.HEAL);
         }
         return true;
@@ -1003,6 +1002,7 @@ public class SmartHunterBot extends UT2004BotTCController {
     }
 
     public RequestHelpDefense getHelpRequest() {
+        if (helpRequest == null) return null;
         return helpRequest.object;
     }
 
@@ -1017,7 +1017,7 @@ public class SmartHunterBot extends UT2004BotTCController {
             else if (needHealthUrgent()) urgent = true;
             else if (this.state.getCurrentStateHigh() != State.HIGH.READY) urgent = true;
 
-            RequestHelpDefense request = new RequestHelpDefense(enemy, info.getLocation(), urgent);
+            RequestHelpDefense request = new RequestHelpDefense(enemy.getLocation(), info.getLocation(), urgent);
             this.sendTeamMessage(new TCRequestHelpDefense(new TimeStampedObject<RequestHelpDefense>(request, System.currentTimeMillis())));
         }
     }
@@ -1025,6 +1025,14 @@ public class SmartHunterBot extends UT2004BotTCController {
     //          WORLD STATE
     @EventListener(eventClass = TCRequestHelpDefense.class)
     public void getHelpRequest(TCRequestHelpDefense event) {
+        if (event.getHelpDefense() == null) {
+            log.warning("No data recieved");
+            return;
+        }
+        if (helpRequest == null) {
+            helpRequest = event.getHelpDefense();
+            return;
+        }
         if (event.getHelpDefense().timestamp > helpRequest.timestamp) {
             helpRequest = event.getHelpDefense();
         }

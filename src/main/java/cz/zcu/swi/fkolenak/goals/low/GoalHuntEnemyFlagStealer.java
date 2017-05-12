@@ -20,7 +20,7 @@ public class GoalHuntEnemyFlagStealer extends Goal {
         super(bot, fNavigate, paths, state);
     }
 
-    private Heatup pursue = new Heatup(2000);
+    private Heatup pursue = new Heatup(500);
 
 
     @Override
@@ -59,6 +59,7 @@ public class GoalHuntEnemyFlagStealer extends Goal {
             Player stealer = getBot().getPlayers().getPlayer(stealerId);
             getNavigation().navigate(stealer);
         }
+
     }
 
 }
