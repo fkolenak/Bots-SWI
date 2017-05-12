@@ -26,9 +26,13 @@ import cz.cuni.amis.pogamut.ut2004.teamcomm.bot.UT2004BotTCController;
 import cz.cuni.amis.pogamut.ut2004.teamcomm.mina.messages.TCMessageData;
 import cz.cuni.amis.pogamut.ut2004.teamcomm.server.UT2004TCServer;
 import cz.cuni.amis.pogamut.ut2004.utils.UnrealUtils;
+import cz.cuni.amis.utils.Cooldown;
 import cz.cuni.amis.utils.exception.PogamutException;
 import cz.cuni.amis.utils.flag.FlagListener;
+import cz.zcu.swi.fkolenak.communication.classes.RequestHelpDefense;
+import cz.zcu.swi.fkolenak.communication.classes.TimeStampedObject;
 import cz.zcu.swi.fkolenak.communication.classes.WorldState;
+import cz.zcu.swi.fkolenak.communication.events.TCRequestHelpDefense;
 import cz.zcu.swi.fkolenak.communication.events.TCShareWorldState;
 import cz.zcu.swi.fkolenak.goals.GoalManager;
 import cz.zcu.swi.fkolenak.goals.StateReady;
@@ -110,7 +114,7 @@ public class SmartHunterBot extends UT2004BotTCController {
     private GoalPickupItems poalPickupItems;
     private GoalPickUpEnemyFlag goalPickUpEnemyFlag;
     private GoalPickUpOurFlag goalPickUpOurFlag;
-
+    private GoalHuntEnemyFlagStealer goalHuntEnemyFlagStealer;
 
     public static UT2004TCServer tcServer;
 
@@ -247,13 +251,14 @@ public class SmartHunterBot extends UT2004BotTCController {
         poalPickupItems = new GoalPickupItems(this, fNavigate, paths, state);
         goalPickUpEnemyFlag = new GoalPickUpEnemyFlag(this, fNavigate, paths, state, worldState);
         goalPickUpOurFlag = new GoalPickUpOurFlag(this, fNavigate, paths, state, worldState);
-
+        goalHuntEnemyFlagStealer = new GoalHuntEnemyFlagStealer(this, fNavigate, paths, state);
 
         goalManager.addGoal(goalStealingEnemyFlag);
         goalManager.addGoal(goalStealEnemyFlag);
         goalManager.addGoal(poalPickupItems);
         goalManager.addGoal(goalPickUpEnemyFlag);
         goalManager.addGoal(goalPickUpOurFlag);
+        goalManager.addGoal(goalHuntEnemyFlagStealer);
 
 
 
@@ -269,6 +274,7 @@ public class SmartHunterBot extends UT2004BotTCController {
     public void logic() throws PogamutException {
         shoot();
         updateWorldState();
+        needHelp();
         // Go for weapon
         if (state.getCurrentStateHigh() == State.HIGH.GEAR_UP_MINIMAL) {
             obtainGoods();
@@ -291,6 +297,7 @@ public class SmartHunterBot extends UT2004BotTCController {
 
         shareWorldState();
     }
+
 
 
 
@@ -539,6 +546,20 @@ public class SmartHunterBot extends UT2004BotTCController {
 
         return false;
     }
+
+
+    private void needHelp() {
+
+        double distance = getFwMap().getDistance(getNavPoints().getNearestNavPoint(getInfo().getLocation()), getNavPoints().getNearestNavPoint(getCTF().getOurBase()));
+        if (distance < 1500 && players.canSeeEnemies()) {
+            Player enemy = players.getNearestVisibleEnemy();
+            distance = getCTF().getOurBase().getLocation().getDistance(enemy.getLocation());
+            if (distance < 1500) {
+                requestHelp(enemy);
+            }
+        }
+    }
+
 
     //******************************************\\
     //                                          \\
@@ -971,4 +992,43 @@ public class SmartHunterBot extends UT2004BotTCController {
     public void shareWorldState() {
         this.sendTeamMessage(new TCShareWorldState(this.worldState));
     }
+    //=================
+    //  Request Help
+    //=================
+
+    private TimeStampedObject<RequestHelpDefense> helpRequest;
+
+    public void setHelpRequest(TimeStampedObject<RequestHelpDefense> helpRequest) {
+        this.helpRequest = helpRequest;
+    }
+
+    public RequestHelpDefense getHelpRequest() {
+        return helpRequest.object;
+    }
+
+
+    private Cooldown politenes = new Cooldown(1500);
+
+    private void requestHelp(Player enemy) {
+        if (politenes.tryUse()) {
+            boolean urgent = false;
+
+            if (getCTF().isBotCarryingEnemyFlag()) urgent = true;
+            else if (needHealthUrgent()) urgent = true;
+            else if (this.state.getCurrentStateHigh() != State.HIGH.READY) urgent = true;
+
+            RequestHelpDefense request = new RequestHelpDefense(enemy, info.getLocation(), urgent);
+            this.sendTeamMessage(new TCRequestHelpDefense(new TimeStampedObject<RequestHelpDefense>(request, System.currentTimeMillis())));
+        }
+    }
+
+    //          WORLD STATE
+    @EventListener(eventClass = TCRequestHelpDefense.class)
+    public void getHelpRequest(TCRequestHelpDefense event) {
+        if (event.getHelpDefense().timestamp > helpRequest.timestamp) {
+            helpRequest = event.getHelpDefense();
+        }
+    }
+
+
 }

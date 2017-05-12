@@ -7,7 +7,7 @@ import cz.zcu.swi.fkolenak.helpers.Paths;
 import cz.zcu.swi.fkolenak.helpers.State;
 
 /**
- * @author rohlik
+ * @author rohlik, fkolenak
  */
 public abstract class Goal extends BotReference implements IGoal {
     protected NavigateFunctions fNavigate;

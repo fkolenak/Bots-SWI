@@ -13,9 +13,13 @@ public class Constants {
     public static final int TEAM = 0;
     public static final int YEAR = 2017;
 
-    public static final double GOAL_PRIORITY_OUR_FLAG_PICK_UP = 101;
-    public static final double GOAL_PRIORITY_ENEMY_FLAG_STEALING = 100;
-    public static final double GOAL_PRIORITY_ENEMY_FLAG_PICK_UP = 80;
+
+    public static final double GOAL_PRIORITY_OUR_FLAG_PICK_UP = 110;
+    public static final double GOAL_PRIORITY_ENEMY_FLAG_STEALING = 105;
+    public static final double GOAL_PRIORITY_ENEMY_FLAG_PICK_UP = 100;
+    public static final double GOAL_PRIORITY_HUNT_ENEMY_FLAG_STEALER = 95;
+    public static final double GOAL_PRIORITY_FULFILL_HELP_REQUEST = 90;
+
     public static final double GOAL_PRIORITY_ENEMY_FLAG_STEAL = 50;
 
     public static final double GOAL_PRIORITY_PICK_UP_ITEMS = -1;

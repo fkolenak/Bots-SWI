@@ -72,5 +72,9 @@ public class BotReference {
         return bot.getWeaponry();
     }
 
+    protected Players getPlayers() {
+        return bot.getPlayers();
+    }
+
 
 }

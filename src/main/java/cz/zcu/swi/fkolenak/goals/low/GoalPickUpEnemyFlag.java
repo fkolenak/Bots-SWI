@@ -55,13 +55,4 @@ public class GoalPickUpEnemyFlag extends Goal {
         }
     }
 
-    @Override
-    public void pathFailed() {
-
-    }
-
-    @Override
-    public void targetReached() {
-
-    }
 }

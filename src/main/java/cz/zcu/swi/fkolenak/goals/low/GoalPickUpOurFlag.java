@@ -68,13 +68,5 @@ public class GoalPickUpOurFlag extends Goal {
         }
     }
 
-    @Override
-    public void pathFailed() {
 
-    }
-
-    @Override
-    public void targetReached() {
-
-    }
 }

@@ -82,13 +82,4 @@ public class GoalStealingEnemyFlag extends Goal {
         }
     }
 
-    @Override
-    public void pathFailed() {
-
-    }
-
-    @Override
-    public void targetReached() {
-
-    }
 }

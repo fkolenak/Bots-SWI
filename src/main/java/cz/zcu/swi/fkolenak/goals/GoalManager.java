@@ -10,7 +10,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * @author rohlik
+ * @author rohlik, fkolenak
  */
 public class GoalManager {
     protected final List<IGoal> goals = new ArrayList<IGoal>();

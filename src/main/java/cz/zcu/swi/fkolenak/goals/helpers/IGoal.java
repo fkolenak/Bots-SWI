@@ -18,10 +18,4 @@ public interface IGoal extends Comparable<IGoal> {
     void abandon();
 
     void perform();
-
-    //// UTILITY METHODS
-
-    void pathFailed();
-
-    void targetReached();
 }

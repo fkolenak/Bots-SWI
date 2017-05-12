@@ -67,15 +67,6 @@ public class GoalPickupItems extends Goal {
         pickUpSomeItem();
     }
 
-    @Override
-    public void pathFailed() {
-
-    }
-
-    @Override
-    public void targetReached() {
-
-    }
 
     private boolean pickUpSomeItem() {
         Collection<UT2004ItemType> wanted = new ArrayList<UT2004ItemType>();
