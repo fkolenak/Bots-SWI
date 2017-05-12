@@ -1,6 +1,7 @@
 package cz.zcu.swi.fkolenak;
 
 import cz.cuni.amis.introspection.java.JProp;
+import cz.cuni.amis.pogamut.base.agent.module.comm.PogamutJVMComm;
 import cz.cuni.amis.pogamut.base.communication.worldview.event.IWorldEvent;
 import cz.cuni.amis.pogamut.base.communication.worldview.listener.annotation.AnnotationListenerRegistrator;
 import cz.cuni.amis.pogamut.base.communication.worldview.listener.annotation.EventListener;
@@ -21,11 +22,20 @@ import cz.cuni.amis.pogamut.ut2004.communication.messages.gbcommands.Configurati
 import cz.cuni.amis.pogamut.ut2004.communication.messages.gbcommands.Initialize;
 import cz.cuni.amis.pogamut.ut2004.communication.messages.gbcommands.Rotate;
 import cz.cuni.amis.pogamut.ut2004.communication.messages.gbinfomessages.*;
+import cz.cuni.amis.pogamut.ut2004.teamcomm.bot.UT2004BotTCController;
+import cz.cuni.amis.pogamut.ut2004.teamcomm.mina.messages.TCMessageData;
+import cz.cuni.amis.pogamut.ut2004.teamcomm.server.UT2004TCServer;
 import cz.cuni.amis.pogamut.ut2004.utils.UnrealUtils;
 import cz.cuni.amis.utils.exception.PogamutException;
 import cz.cuni.amis.utils.flag.FlagListener;
+import cz.zcu.swi.fkolenak.communication.classes.WorldState;
+import cz.zcu.swi.fkolenak.communication.events.TCShareWorldState;
+import cz.zcu.swi.fkolenak.goals.GoalManager;
+import cz.zcu.swi.fkolenak.goals.StateReady;
+import cz.zcu.swi.fkolenak.goals.low.GoalPickupItems;
+import cz.zcu.swi.fkolenak.goals.low.GoalStealEnemyFlag;
+import cz.zcu.swi.fkolenak.goals.low.GoalStealingEnemyFlag;
 import cz.zcu.swi.fkolenak.helpers.*;
-import cz.zcu.swi.fkolenak.states.StateReady;
 
 import javax.vecmath.Vector3d;
 import java.util.*;
@@ -37,8 +47,7 @@ import java.util.logging.Level;
  * @author Jakub Gemrot aka Jimmy
  */
 @AgentScoped
-public class SmartHunterBot extends UT2004BotModuleController {
-    private static final boolean DEBUG = Constants.DEBUG;
+public class SmartHunterBot extends UT2004BotTCController {
 
     private StateReady stateReady;
 
@@ -95,8 +104,16 @@ public class SmartHunterBot extends UT2004BotModuleController {
 
     private AutoTraceRay leftGround, rightGround;
 
+    // GOAL manager
+    private GoalManager goalManager;
+    // GOALS FOR MANAGER
+    private GoalStealingEnemyFlag goalStealingEnemyFlag;
+    private GoalStealEnemyFlag goalStealEnemyFlag;
+    private GoalPickupItems poalPickupItems;
 
+    public static UT2004TCServer tcServer;
 
+    private WorldState worldState;
     /**
      * Here we can modify initialize command for our bot if we want to.
      *
@@ -104,7 +121,10 @@ public class SmartHunterBot extends UT2004BotModuleController {
      */
     @Override
     public Initialize getInitializeCommand() {
-        Initialize i = new Initialize().setName("Hunter-Bot" + getId()).setDesiredSkill(Main.SKILL).setTeam(Main.TEAM);
+        // TODO change back
+        //Initialize i = new Initialize().setName("Hunter-Bot" + getId()).setDesiredSkill(Main.SKILL).setTeam(Main.TEAM);
+        Initialize i = new Initialize().setName("Hunter-Bot" + getId()).setDesiredSkill(Main.SKILL).setTeam(getId() % 2);
+
         incrementID();
         return i;
     }
@@ -117,6 +137,10 @@ public class SmartHunterBot extends UT2004BotModuleController {
         synchronized (this) {
             _ID++;
         }
+    }
+
+    public WorldState getWorldState() {
+        return worldState;
     }
 
     @Override
@@ -150,18 +174,16 @@ public class SmartHunterBot extends UT2004BotModuleController {
 
         shoot.setChangeWeaponCooldown(CHANGE_WEAPON_COOLDOWN);
 
-       // setUpRayCasting();
+        //setUpRayCasting();
         fNavigate = new NavigateFunctions(this);
 
-        log.info(ctf.toString());
-
-        log.info(getCTF().toString());
-
+        PogamutJVMComm.getInstance().getLog().setLevel(Level.WARNING);
+        PogamutJVMComm.getInstance().registerAgent(bot, Constants.COMM_CHANEL);
 
 
     }
 
-    //TODO add front ray to know if I can dodge + jump forward
+    //TODO add front ray to know if I can dodge left or right
     private void setUpRayCasting(){
 
         // 2. create new rays
@@ -216,8 +238,18 @@ public class SmartHunterBot extends UT2004BotModuleController {
         paths.generatePathsToOurBase();
         stateReady = new StateReady(this, fNavigate, paths);
 
+        goalManager = new GoalManager(this);
+
+        goalStealingEnemyFlag = new GoalStealingEnemyFlag(this, fNavigate, paths, state);
+        goalStealEnemyFlag = new GoalStealEnemyFlag(this, fNavigate, paths, state);
+        poalPickupItems = new GoalPickupItems(this, fNavigate, paths, state);
+
+        goalManager.addGoal(goalStealingEnemyFlag);
+        goalManager.addGoal(goalStealEnemyFlag);
+        goalManager.addGoal(poalPickupItems);
 
 
+        worldState = new WorldState();
     }
 
 
@@ -229,6 +261,7 @@ public class SmartHunterBot extends UT2004BotModuleController {
     @Override
     public void logic() throws PogamutException {
         shoot();
+        updateWorldState();
         // Go for weapon
         if (state.getCurrentStateHigh() == State.HIGH.GEAR_UP_MINIMAL) {
             obtainGoods();
@@ -238,7 +271,8 @@ public class SmartHunterBot extends UT2004BotModuleController {
 
 
         if (state.getCurrentStateHigh() == State.HIGH.READY) {
-            stateReady();
+            goalManager.executeGoalWithHighestPriority();
+            //stateReady();
         }
 
         if (state.getCurrentStateHigh() == State.HIGH.HEAL) {
@@ -247,7 +281,10 @@ public class SmartHunterBot extends UT2004BotModuleController {
                 state.setCurrentStateHigh(State.HIGH.READY);
             }
         }
+
+        shareWorldState();
     }
+
 
 
     //******************************************\\
@@ -256,16 +293,10 @@ public class SmartHunterBot extends UT2004BotModuleController {
     //                                          \\
     //******************************************\\
 
-    private boolean stateReady() {
-
-        return stateReady.decide(state);
-    }
-
-
-
     private void shoot() {
         // Shoot enemy
         if (canSeeEnemies()) {
+            // TODO improve targets
             combat();
         } else {
             // No enemy stop shooting
@@ -385,11 +416,17 @@ public class SmartHunterBot extends UT2004BotModuleController {
             double distanceBetweenItem1 = fwMap.getDistance(target.getNavPoint(), info.getNearestNavPoint());
             double distanceBetweenItem2 = fwMap.getDistance(closestWeapon.getNavPoint(), info.getNearestNavPoint());
             if (distanceBetweenItem1 < distanceBetweenItem2) {
-                LetKnow.debugGoal(this, "Navigate", target.getType().getName() + " | " + distanceBetweenItem1);
+                if (Constants.DEBUG) {
+                    getLog().info("Navigate:" + target.getType().getName());
+                    LetKnow.debugGoal(this, "Navigate", target.getType().getName());
+                }
                 navigateTo(target);
                 return true;
             } else {
-                LetKnow.debugGoal(this, "Navigate", closestWeapon.getType().getName() + " | " + distanceBetweenItem2);
+                if (Constants.DEBUG) {
+                    getLog().info("Navigate:" + closestWeapon.getType().getName());
+                    LetKnow.debugGoal(this, "Navigate", closestWeapon.getType().getName());
+                }
                 navigateTo(closestWeapon);
                 return true;
             }
@@ -408,7 +445,7 @@ public class SmartHunterBot extends UT2004BotModuleController {
     }
 
 
-    private boolean pickUpSomeWeapon() {
+    public boolean pickUpSomeWeapon() {
         if (!weaponry.hasLoadedWeapon(UT2004ItemType.LIGHTNING_GUN)) {
             if (fNavigate.navigateTo(UT2004ItemType.LIGHTNING_GUN)) return true;
         }
@@ -440,77 +477,20 @@ public class SmartHunterBot extends UT2004BotModuleController {
     }
 
 
-
-    private boolean pickUpItems() {
-
-
-        if(weaponry.getLoadedWeapons().size() < 2){
-            state.setCurrentStateHigh(State.HIGH.GEAR_UP_MINIMAL);
-            return true;
-        }
-        if(navigation.isNavigating()){
-            return false;
-        }
-
-        if(needArmor()){
-            if(pickUpNearestArmor()){
-                return true;
-            }
-        }
-        if (needHealthUrgent()) {
-            if (pickUpNearestHealth()){
-                return true;
-            }
-        }
-        if (pickUpSomeWeapon()) {
-            return true;
-        }
-
-        return pickUpSomeItem();
-
-    }
-
-    private boolean pickUpSomeItem() {
-        Collection<UT2004ItemType> wanted = new ArrayList<UT2004ItemType>();
-        wanted.add(UT2004ItemType.SUPER_HEALTH_PACK);
-        wanted.add(UT2004ItemType.MINI_HEALTH_PACK);
-        wanted.add(UT2004ItemType.SHIELD_PACK);
-        wanted.add(UT2004ItemType.SUPER_SHIELD_PACK);
-
-        Set<Item> items = getNearestSpawnedItems(wanted);
-        if(items != null && items.size() > 0){
-            navigateTo((Item) items.toArray()[random.nextInt(items.size())]);
-            return true;
-        } else {
-            navigateTo(navPoints.getRandomNavPoint());
-            return false;
-        }
-
-    }
-
-    private boolean needHealth(){
+    public boolean needHealth() {
         return info.getHealth() < 76;
     }
 
-    private boolean needArmor(){
+    public boolean needArmor() {
         return info.getArmor() < 40;
     }
 
-    private boolean needHealthUrgent() {
+    public boolean needHealthUrgent() {
         return info.getHealth() < 40 || info.getHealth() + info.getArmor() < 40;
     }
 
-    private boolean pickUpNearestHealth() {
-        Item nearestHealth = getNearestSpawnedItem(UT2004ItemType.HEALTH_PACK);
-        if(nearestHealth == null){
-            return false;
-        }
-        navigateTo(nearestHealth);
-        state.setCurrentStateHigh(State.HIGH.READY);
-        return true;
-    }
 
-    private boolean pickUpNearestArmor() {
+    public boolean pickUpNearestArmor() {
         Item nearestArmor = getNearestSpawnedItem(UT2004ItemType.SHIELD_PACK);
         Item nearestSuperArmor = getNearestSpawnedItem(UT2004ItemType.SUPER_SHIELD_PACK);
 
@@ -577,7 +557,7 @@ public class SmartHunterBot extends UT2004BotModuleController {
      * @param types
      * @return
      */
-    private Set<Item> getNearestSpawnedItems(Collection<UT2004ItemType> types) {
+    public Set<Item> getNearestSpawnedItems(Collection<UT2004ItemType> types) {
         Set<Item> result = new HashSet<Item>();
         for (UT2004ItemType type : types) {
             Item n = getNearestSpawnedItem(type);
@@ -593,7 +573,7 @@ public class SmartHunterBot extends UT2004BotModuleController {
      *
      * @return
      */
-    private Item getNearestSpawnedWeapon() {
+    public Item getNearestSpawnedWeapon() {
         return getNearestSpawnedItem(ItemType.Category.WEAPON);
     }
 
@@ -602,7 +582,7 @@ public class SmartHunterBot extends UT2004BotModuleController {
      * @param type
      * @return
      */
-    private Item getNearestSpawnedItem(UT2004ItemType type) {
+    public Item getNearestSpawnedItem(UT2004ItemType type) {
         final NavPoint nearestNavPoint = info.getNearestNavPoint();
         Item nearest = DistanceUtils.getNearest(
                 items.getSpawnedItems(type).values(),
@@ -623,7 +603,7 @@ public class SmartHunterBot extends UT2004BotModuleController {
      * @param type
      * @return
      */
-    private Item getNearestSpawnedItem(ItemType.Category type) {
+    public Item getNearestSpawnedItem(ItemType.Category type) {
         final NavPoint nearestNavPoint = info.getNearestNavPoint();
         return DistanceUtils.getNearest(
                 items.getSpawnedItems(type).values(),
@@ -641,7 +621,7 @@ public class SmartHunterBot extends UT2004BotModuleController {
      * @param types
      * @return
      */
-    private Item getNearestSpawnedItem(Collection<UT2004ItemType> types) {
+    public Item getNearestSpawnedItem(Collection<UT2004ItemType> types) {
         Set<Item> result = getNearestSpawnedItems(types);
 
         Item target = DistanceUtils.getNearest(result, info.getNearestNavPoint(),
@@ -686,7 +666,7 @@ public class SmartHunterBot extends UT2004BotModuleController {
         if (enemy != null){
             move.turnTo(enemy);
         } else {
-            move.turnHorizontal(20000);
+            move.turnHorizontal(32000);
         }
     }
 
@@ -700,7 +680,7 @@ public class SmartHunterBot extends UT2004BotModuleController {
         return true;
     }
 
-    private boolean randomDodgeMove() {
+    public boolean randomDodgeMove() {
         int dodgeMoveNumber = random.nextInt(4) + 1;
         if(dodgeMoveNumber == 1){
             move.jump();
@@ -938,13 +918,50 @@ public class SmartHunterBot extends UT2004BotModuleController {
         for (UnrealId id : players.getFriends().keySet()) {
             if (id.equals(event.getId())) {
                 move.strafeLeft(200);
+                break;
             }
         }
         //randomDodgeMove();
     }
 
+
     public void debugState() {
-        LetKnow.debugState(this, state);
+
+        // LetKnow.debugState(this, state);
     }
 
+    /*************COMM ****************/
+
+
+    public void sendTeamMessage(TCMessageData message) {
+        tcClient.sendToTeamOthers(message);
+    }
+
+
+    //          WORLD STATE
+    @EventListener(eventClass = TCShareWorldState.class)
+    public void getWorldStatePacket(TCShareWorldState event) {
+        this.worldState.updateWorldState(event.getWorldState());
+    }
+
+    public void updateWorldState() {
+        long timestamp = game.getGameInfo().getSimTime();
+        if (this.ctf.isEnemyFlagHome()) {
+            this.worldState.updateEnemyFlag(this.ctf.getEnemyBase().getLocation(), timestamp);
+        } else if (this.ctf.isBotCarryingEnemyFlag()) {
+            this.worldState.updateEnemyFlag(this.info.getLocation(), timestamp);
+        } else if (this.ctf.getEnemyFlag().isVisible()) {
+            this.worldState.updateEnemyFlag(this.ctf.getEnemyFlag().getLocation(), timestamp);
+        }
+
+        if (this.ctf.isOurFlagHome()) {
+            this.worldState.updateOurFlag(this.ctf.getOurBase().getLocation(), timestamp);
+        } else if (this.ctf.getOurFlag().isVisible()) {
+            this.worldState.updateOurFlag(this.ctf.getOurFlag().getLocation(), timestamp);
+        }
+    }
+
+    public void shareWorldState() {
+        this.sendTeamMessage(new TCShareWorldState(this.worldState));
+    }
 }

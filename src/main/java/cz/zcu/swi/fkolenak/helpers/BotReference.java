@@ -1,18 +1,20 @@
 package cz.zcu.swi.fkolenak.helpers;
 
 import cz.cuni.amis.pogamut.base.utils.logging.LogCategory;
+import cz.cuni.amis.pogamut.ut2004.agent.module.sensomotoric.Weaponry;
 import cz.cuni.amis.pogamut.ut2004.agent.module.sensor.*;
 import cz.cuni.amis.pogamut.ut2004.agent.navigation.IUT2004Navigation;
 import cz.cuni.amis.pogamut.ut2004.agent.navigation.astar.UT2004AStar;
 import cz.cuni.amis.pogamut.ut2004.agent.navigation.floydwarshall.FloydWarshallMap;
 import cz.cuni.amis.pogamut.ut2004.agent.navigation.navmesh.drawing.UT2004Draw;
+import cz.cuni.amis.pogamut.ut2004.bot.command.AdvancedLocomotion;
 import cz.zcu.swi.fkolenak.SmartHunterBot;
 
 /**
  * Created by japan on 09-May-17.
  */
 public class BotReference {
-    private SmartHunterBot bot;
+    protected SmartHunterBot bot;
 
     public BotReference(SmartHunterBot bot) {
         this.bot = bot;
@@ -60,6 +62,14 @@ public class BotReference {
 
     protected Game getGame() {
         return bot.getGame();
+    }
+
+    protected AdvancedLocomotion getMove() {
+        return bot.getMove();
+    }
+
+    protected Weaponry getWeaponry() {
+        return bot.getWeaponry();
     }
 
 

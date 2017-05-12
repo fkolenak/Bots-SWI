@@ -39,10 +39,10 @@ public class NavigateFunctions extends BotReference {
         Item item = getFwMap().getNearestItem(getItems().getSpawnedItems(type).values(), getNavPoints().getNearestNavPoint());
 
         if (item != null) {
-            getBot().getName().setInfo("To", item.getType().getName());
+            //getBot().getName().setInfo("To", item.getType().getName());
             navigateTo(item);
         } else {
-            getBot().getName().setInfo("No item to run to.");
+            //getBot().getName().setInfo("No item to run to.");
             return false;
         }
         return true;

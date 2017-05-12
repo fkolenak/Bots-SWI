@@ -37,6 +37,9 @@ public class TamperNavBuilder {
 
 
         if (bot.getGame().getMapName().equals("CTF-BP2-Concentrate")) {
+            bot.getNavBuilder().modifyNavPoint("CTF-BP2-Concentrate.PathNode39").modifyEdgeTo("CTF-Maul.xBlueFlagBase0").clearFlags();
+
+
             bot.getNavBuilder().removeEdge("CTF-BP2-Concentrate.xRedFlagBase1", "CTF-BP2-Concentrate.PathNode81");
             bot.getNavBuilder().removeEdge("CTF-BP2-Concentrate.xRedFlagBase1", "CTF-BP2-Concentrate.PathNode74");
 

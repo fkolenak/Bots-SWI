@@ -12,12 +12,12 @@ public class LetKnow {
      * Displays info tag on the bot.
      *
      * @param bot
-     * @param state current bot states to display
+     * @param state current bot goals to display
      */
     public static void debugState(SmartHunterBot bot, State state) {
         if (Constants.VERBOSE) {
             bot.getLog().info("Current bot state: " + state.toString());
-            bot.getBot().getBotName().setInfo("State", state.toString());
+            //bot.getBot().getBotName().setInfo("State", state.toString());
         }
     }
 

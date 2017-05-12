@@ -36,6 +36,11 @@
             <version>15.0</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>cz.cuni.amis.pogamut.ut2004</groupId>
+            <artifactId>ut2004-team-comm</artifactId>
+            <version>3.7.1-SNAPSHOT</version>
+        </dependency>
     </dependencies>
 
     <build>

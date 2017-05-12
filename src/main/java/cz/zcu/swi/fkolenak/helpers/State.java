@@ -52,7 +52,8 @@ public class State {
     public enum LOW {
         NONE("NONE"),
         GET_WEAPON("GETTING_WEAPON"),
-        FLAG_STEAL("STEAL_FLAG");
+        FLAG_STEAL("STEAL_FLAG"),
+        FLAG_STEALING("STEALING_FLAG");
 
         private final String s;
 
