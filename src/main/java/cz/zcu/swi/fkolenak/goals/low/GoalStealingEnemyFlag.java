@@ -27,7 +27,7 @@ public class GoalStealingEnemyFlag extends Goal {
 
     @Override
     public double getPriority() {
-        return Constants.GOAL_PRIORITY_STEALING_ENEMY_FLAG;
+        return Constants.GOAL_PRIORITY_ENEMY_FLAG_STEALING;
     }
 
     @Override
@@ -57,10 +57,16 @@ public class GoalStealingEnemyFlag extends Goal {
 
         boolean isNavigating = getNavigation().isNavigating();
         if (!isNavigating) {
-            List<List<NavPoint>> paths = this.paths.getOurBasePaths();
-            fNavigate.navigateTo(paths.get(getBot().getRandom().nextInt(paths.size())));
-            state.setCurrentStateLow(State.LOW.FLAG_STEALING);
-            return;
+            double dist = getInfo().getLocation().getDistance(getCTF().getEnemyBase().getLocation());
+            if (dist < 300) {
+                List<List<NavPoint>> paths = this.paths.getOurBasePaths();
+                fNavigate.navigateTo(paths.get(getBot().getRandom().nextInt(paths.size())));
+                state.setCurrentStateLow(State.LOW.FLAG_STEALING);
+                return;
+            } else {
+                getNavigation().navigate(getCTF().getOurBase());
+                return;
+            }
             // TODO cover me
         }
         if (getNavigation().getCurrentTargetNavPoint().equals(getCTF().getOurBase())) {
@@ -73,8 +79,6 @@ public class GoalStealingEnemyFlag extends Goal {
             // TODO get our flag
             getMove().doubleJump();
             // This bot just waits until teammates returns our flag
-        } else {
-
         }
     }
 

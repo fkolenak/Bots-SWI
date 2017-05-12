@@ -17,7 +17,7 @@ public class GoalManager {
     protected IGoal currentGoal = null;
     protected final SmartHunterBot bot;
 
-    protected Heatup heatup = new Heatup(500);
+    protected Heatup heatup = new Heatup(1000);
 
     public GoalManager(SmartHunterBot bot) {
         this.bot = bot;
