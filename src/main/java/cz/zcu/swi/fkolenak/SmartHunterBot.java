@@ -1,7 +1,6 @@
 package cz.zcu.swi.fkolenak;
 
 import cz.cuni.amis.introspection.java.JProp;
-import cz.cuni.amis.pogamut.base.agent.module.comm.PogamutJVMComm;
 import cz.cuni.amis.pogamut.base.communication.worldview.event.IWorldEvent;
 import cz.cuni.amis.pogamut.base.communication.worldview.listener.annotation.AnnotationListenerRegistrator;
 import cz.cuni.amis.pogamut.base.communication.worldview.listener.annotation.EventListener;
@@ -24,7 +23,6 @@ import cz.cuni.amis.pogamut.ut2004.communication.messages.gbcommands.Rotate;
 import cz.cuni.amis.pogamut.ut2004.communication.messages.gbinfomessages.*;
 import cz.cuni.amis.pogamut.ut2004.teamcomm.bot.UT2004BotTCController;
 import cz.cuni.amis.pogamut.ut2004.teamcomm.mina.messages.TCMessageData;
-import cz.cuni.amis.pogamut.ut2004.teamcomm.server.UT2004TCServer;
 import cz.cuni.amis.pogamut.ut2004.utils.UnrealUtils;
 import cz.cuni.amis.utils.Cooldown;
 import cz.cuni.amis.utils.exception.PogamutException;
@@ -35,7 +33,6 @@ import cz.zcu.swi.fkolenak.communication.classes.WorldState;
 import cz.zcu.swi.fkolenak.communication.events.TCRequestHelpDefense;
 import cz.zcu.swi.fkolenak.communication.events.TCShareWorldState;
 import cz.zcu.swi.fkolenak.goals.GoalManager;
-import cz.zcu.swi.fkolenak.goals.StateReady;
 import cz.zcu.swi.fkolenak.goals.low.*;
 import cz.zcu.swi.fkolenak.helpers.*;
 
@@ -51,24 +48,23 @@ import java.util.logging.Level;
 @AgentScoped
 public class SmartHunterBot extends UT2004BotTCController {
 
-    private StateReady stateReady;
 
 
     private static int _ID = 0;
 
     protected State state = new State(State.HIGH.GEAR_UP_MINIMAL, State.LOW.NONE);
 
-    protected static int CHANGE_WEAPON_COOLDOWN = 1400;
+    private static int CHANGE_WEAPON_COOLDOWN = 1400;
 
     // Atributes to continuously navigate
-    protected List<NavPoint> currentPath;
+    private List<NavPoint> currentPath;
 
     // Remove automatically nodes
     /**
      * Taboo set is working as "black-list", that is you might add some
      * NavPoints to it for a certain time, marking them as "unavailable".
      */
-    protected TabooSet<NavPoint> tabooNavPoints;
+    private TabooSet<NavPoint> tabooNavPoints;
     /**
      * Path auto fixer watches for navigation failures and if some navigation
      * link is found to be unwalkable, it removes it from underlying navigation
@@ -77,12 +73,10 @@ public class SmartHunterBot extends UT2004BotTCController {
      * Note that UT2004 navigation graphs are some times VERY stupid or contains
      * VERY HARD TO FOLLOW links...
      */
-    protected UT2004PathAutoFixer autoFixer;
+    private UT2004PathAutoFixer autoFixer;
 
 
-
-
-    protected Premades premades = new Premades();
+    private Premades premades = new Premades();
     private NavigateFunctions fNavigate;
     private Paths paths;
 
@@ -91,11 +85,11 @@ public class SmartHunterBot extends UT2004BotTCController {
     private Collection<UT2004ItemType> healItemsTypes = new ArrayList<UT2004ItemType>();
 
     // Rays
-    protected static final String LEFT_GROUND_45 = "leftGround45Ray";
-    protected static final String RIGHT_GROUND_45 = "RightGround45Ray";
+    private static final String LEFT_GROUND_45 = "leftGround45Ray";
+    private static final String RIGHT_GROUND_45 = "RightGround45Ray";
 
     @JProp
-    protected final int rayLength = (int) (UnrealUtils.CHARACTER_COLLISION_HEIGHT * 3);
+    private final int rayLength = (int) (UnrealUtils.CHARACTER_COLLISION_HEIGHT * 3);
     // settings for the rays
     @JProp
     protected boolean fastTrace = true;        // perform only fast trace == we just need true/false information
@@ -116,9 +110,8 @@ public class SmartHunterBot extends UT2004BotTCController {
     private GoalPickUpOurFlag goalPickUpOurFlag;
     private GoalHuntEnemyFlagStealer goalHuntEnemyFlagStealer;
     private GoalFulfillHelpRequest goalFulfillHelpRequest;
-
-    public static UT2004TCServer tcServer;
-
+    private GoalGetOurHeldFlag goalGetOurHeldFlag;
+    private GoalEscortFlagHolder goalEscortFlagHolder;
     private WorldState worldState;
     /**
      * Here we can modify initialize command for our bot if we want to.
@@ -128,8 +121,7 @@ public class SmartHunterBot extends UT2004BotTCController {
     @Override
     public Initialize getInitializeCommand() {
         // TODO change back
-        //Initialize i = new Initialize().setName("Hunter-Bot" + getId()).setDesiredSkill(Main.SKILL).setTeam(Main.TEAM);
-        Initialize i = new Initialize().setName("Hunter-Bot" + getId()).setDesiredSkill(Main.SKILL).setTeam(getId() % 2);
+        Initialize i = new Initialize().setName("fkolenak-Bot" + getId()).setDesiredSkill(Main.SKILL).setTeam(Main.TEAM);
 
         incrementID();
         return i;
@@ -182,10 +174,6 @@ public class SmartHunterBot extends UT2004BotTCController {
 
         //setUpRayCasting();
         fNavigate = new NavigateFunctions(this);
-
-        PogamutJVMComm.getInstance().getLog().setLevel(Level.WARNING);
-        PogamutJVMComm.getInstance().registerAgent(bot, Constants.COMM_CHANEL);
-
 
     }
 
@@ -242,7 +230,6 @@ public class SmartHunterBot extends UT2004BotTCController {
         paths = new Paths(this);
         paths.generatePathsToEnemyBase();
         paths.generatePathsToOurBase();
-        stateReady = new StateReady(this, fNavigate, paths);
 
         goalManager = new GoalManager(this);
         worldState = new WorldState();
@@ -254,6 +241,8 @@ public class SmartHunterBot extends UT2004BotTCController {
         goalPickUpOurFlag = new GoalPickUpOurFlag(this, fNavigate, paths, state, worldState);
         goalHuntEnemyFlagStealer = new GoalHuntEnemyFlagStealer(this, fNavigate, paths, state);
         goalFulfillHelpRequest = new GoalFulfillHelpRequest(this, fNavigate, paths, state);
+        goalGetOurHeldFlag = new GoalGetOurHeldFlag(this, fNavigate, paths, state);
+        goalEscortFlagHolder = new GoalEscortFlagHolder(this, fNavigate, paths, state);
 
         goalManager.addGoal(goalStealingEnemyFlag);
         goalManager.addGoal(goalStealEnemyFlag);
@@ -262,6 +251,8 @@ public class SmartHunterBot extends UT2004BotTCController {
         goalManager.addGoal(goalPickUpOurFlag);
         goalManager.addGoal(goalHuntEnemyFlagStealer);
         goalManager.addGoal(goalFulfillHelpRequest);
+        goalManager.addGoal(goalGetOurHeldFlag);
+        goalManager.addGoal(goalEscortFlagHolder);
 
 
 

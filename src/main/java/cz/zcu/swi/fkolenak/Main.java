@@ -12,7 +12,8 @@ public class Main {
     public static int TEAM = Constants.TEAM;
     public static int SKILL = Constants.SKILL;
     public static int NUMBER_OF_BOTS = Constants.NUM_BOTS;
-
+    public static String SERVER_IP = "128.0.0.8";
+    public static int PORT = 3000;
 
     /**
      * This method is called when the bot is started either from IDE or from
@@ -31,6 +32,12 @@ public class Main {
 
                 NUMBER_OF_BOTS = Integer.parseInt(args[3]);
 
+                String[] split = args[4].split(":");
+                SERVER_IP = split[0];
+                PORT = 3000;
+                if (split.length > 1) {
+                    PORT = Integer.parseInt(split[1]);
+                }
             } catch (Exception e) {
                 System.err.println("Chybne parametry");
                 return;
@@ -39,8 +46,7 @@ public class Main {
             System.out.println("Zadne parametry zadavam defaultni.");
         }
 
-
         // wrapped logic for bots executions, suitable to run single bot in single JVM
-        new UT2004BotRunner(SmartHunterBot.class, "HunterBot").setMain(true).startAgents(NUMBER_OF_BOTS);
+        new UT2004BotRunner(SmartHunterBot.class, "HunterBot").setHost(SERVER_IP).setPort(PORT).setMain(true).startAgents(NUMBER_OF_BOTS);
     }
 }
